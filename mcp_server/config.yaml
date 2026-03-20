@@ -1,0 +1,163 @@
+# Drug Interactions KG — custom MCP tools for samyama-mcp-serve
+#
+# Auto-generated tools handle: search/get/count per label,
+# find_connections/traverse per edge type, algorithms, generic.
+# These custom tools add pharmacology-specific aggregation queries.
+
+include_node_tools: true
+include_edge_tools: true
+include_vector_tools: false
+include_algorithm_tools: true
+
+custom_tools:
+
+  - name: drug_interactions
+    description: "Gene targets of a drug from DGIdb. Returns gene name, interaction type (inhibitor/activator/etc), and source. Use for understanding drug mechanism of action."
+    cypher_template: >
+      MATCH (d:Drug)-[i:INTERACTS_WITH_GENE]->(g:Gene)
+      WHERE d.name CONTAINS '{drug_name}'
+      RETURN g.gene_name AS gene, i.interaction_type AS interaction_type,
+             i.source AS source
+      ORDER BY g.gene_name LIMIT {limit}
+    parameters:
+      - {name: drug_name, type: str}
+      - {name: limit, type: int, default: 50}
+
+  - name: gene_drugs
+    description: "All drugs targeting a specific gene. Search by gene name. Returns drug name, DrugBank ID, interaction type. Use for identifying drugs with shared targets."
+    cypher_template: >
+      MATCH (d:Drug)-[i:INTERACTS_WITH_GENE]->(g:Gene)
+      WHERE g.gene_name CONTAINS '{gene_name}'
+      RETURN d.name AS drug, d.drugbank_id AS drugbank_id,
+             i.interaction_type AS interaction_type
+      ORDER BY d.name LIMIT {limit}
+    parameters:
+      - {name: gene_name, type: str}
+      - {name: limit, type: int, default: 50}
+
+  - name: drug_side_effects
+    description: "SIDER side effects for a drug. Returns side effect name and MedDRA ID. Use for safety profiling."
+    cypher_template: >
+      MATCH (d:Drug)-[:HAS_SIDE_EFFECT]->(se:SideEffect)
+      WHERE d.name CONTAINS '{drug_name}'
+      RETURN se.name AS side_effect, se.meddra_id AS meddra_id
+      ORDER BY se.name LIMIT {limit}
+    parameters:
+      - {name: drug_name, type: str}
+      - {name: limit, type: int, default: 50}
+
+  - name: drug_indications
+    description: "Approved indications for a drug from SIDER. Returns indication name and MedDRA concept ID."
+    cypher_template: >
+      MATCH (d:Drug)-[:HAS_INDICATION]->(ind:Indication)
+      WHERE d.name CONTAINS '{drug_name}'
+      RETURN ind.name AS indication, ind.meddra_id AS meddra_id
+      ORDER BY ind.name LIMIT {limit}
+    parameters:
+      - {name: drug_name, type: str}
+      - {name: limit, type: int, default: 50}
+
+  - name: drug_bioactivity
+    description: "ChEMBL binding affinities (IC50, Ki, etc) for a drug. Returns assay type, standard type, value, units, and pChEMBL value. Higher pChEMBL = stronger binding."
+    cypher_template: >
+      MATCH (d:Drug)-[:HAS_BIOACTIVITY]->(b:Bioactivity)
+      WHERE d.name CONTAINS '{drug_name}'
+      RETURN b.chembl_assay_id AS assay_id, b.standard_type AS type,
+             b.standard_value AS value, b.standard_units AS units,
+             b.pchembl_value AS pchembl
+      ORDER BY b.pchembl_value DESC LIMIT {limit}
+    parameters:
+      - {name: drug_name, type: str}
+      - {name: limit, type: int, default: 20}
+
+  - name: drug_adverse_events
+    description: "FAERS post-market adverse events for a drug. Returns event term and report count. Higher count = more frequently reported."
+    cypher_template: >
+      MATCH (d:Drug)-[r:HAS_ADVERSE_EVENT]->(ae:AdverseEvent)
+      WHERE d.name CONTAINS '{drug_name}'
+      RETURN ae.term AS event, r.count AS report_count
+      ORDER BY r.count DESC LIMIT {limit}
+    parameters:
+      - {name: drug_name, type: str}
+      - {name: limit, type: int, default: 20}
+
+  - name: interaction_checker
+    description: "Check drug-drug interaction risk by finding shared gene targets between two drugs. Returns shared genes and interaction types for each drug."
+    cypher_template: >
+      MATCH (d1:Drug)-[i1:INTERACTS_WITH_GENE]->(g:Gene)
+            <-[i2:INTERACTS_WITH_GENE]-(d2:Drug)
+      WHERE d1.name CONTAINS '{drug1}' AND d2.name CONTAINS '{drug2}'
+      RETURN g.gene_name AS shared_target,
+             i1.interaction_type AS drug1_type,
+             i2.interaction_type AS drug2_type
+      ORDER BY g.gene_name LIMIT {limit}
+    parameters:
+      - {name: drug1, type: str}
+      - {name: drug2, type: str}
+      - {name: limit, type: int, default: 20}
+
+  - name: polypharmacy_risk
+    description: "Polypharmacy risk assessment for a drug combination. Shows shared gene targets AND shared side effects. High overlap = higher interaction risk."
+    cypher_template: >
+      MATCH (d1:Drug)-[:HAS_SIDE_EFFECT]->(se:SideEffect)
+            <-[:HAS_SIDE_EFFECT]-(d2:Drug)
+      WHERE d1.name CONTAINS '{drug1}' AND d2.name CONTAINS '{drug2}'
+      RETURN 'shared_side_effect' AS type, se.name AS name,
+             se.meddra_id AS id
+      ORDER BY se.name LIMIT {limit}
+    parameters:
+      - {name: drug1, type: str}
+      - {name: drug2, type: str}
+      - {name: limit, type: int, default: 30}
+
+  - name: drug_class_hierarchy
+    description: "ATC classification hierarchy for a drug. Returns drug class name, ATC code, and level. Shows where the drug fits in the WHO drug classification."
+    cypher_template: >
+      MATCH (d:Drug)-[:CLASSIFIED_AS]->(dc:DrugClass)
+      WHERE d.name CONTAINS '{drug_name}'
+      OPTIONAL MATCH (dc)-[:PARENT_CLASS*0..4]->(parent:DrugClass)
+      RETURN parent.name AS class_name, parent.atc_code AS atc_code,
+             parent.level AS level
+      ORDER BY parent.level LIMIT {limit}
+    parameters:
+      - {name: drug_name, type: str}
+      - {name: limit, type: int, default: 20}
+
+  - name: gene_drug_landscape
+    description: "Full drug landscape for a gene: all drugs that target it, their interaction types, and bioactivity data. Use for target assessment and competitive landscape analysis."
+    cypher_template: >
+      MATCH (d:Drug)-[i:INTERACTS_WITH_GENE]->(g:Gene)
+      WHERE g.gene_name CONTAINS '{gene_name}'
+      OPTIONAL MATCH (d)-[:HAS_BIOACTIVITY]->(b:Bioactivity)-[:BIOACTIVITY_TARGET]->(g)
+      RETURN d.name AS drug, d.drugbank_id AS drugbank_id,
+             i.interaction_type AS interaction_type,
+             b.standard_type AS assay_type,
+             b.pchembl_value AS pchembl
+      ORDER BY b.pchembl_value DESC LIMIT {limit}
+    parameters:
+      - {name: gene_name, type: str}
+      - {name: limit, type: int, default: 30}
+
+  - name: side_effect_drugs
+    description: "Reverse lookup: all drugs with a given side effect. Search by side effect name. Returns drug name and DrugBank ID."
+    cypher_template: >
+      MATCH (d:Drug)-[:HAS_SIDE_EFFECT]->(se:SideEffect)
+      WHERE se.name CONTAINS '{side_effect}'
+      RETURN d.name AS drug, d.drugbank_id AS drugbank_id
+      ORDER BY d.name LIMIT {limit}
+    parameters:
+      - {name: side_effect, type: str}
+      - {name: limit, type: int, default: 50}
+
+  - name: target_development_status
+    description: "TTD clinical development status for drug-target pairs. Shows target name, UniProt ID, clinical status (Approved/Phase I-III), and target type."
+    cypher_template: >
+      MATCH (d:Drug)-[r:TTD_TARGETS]->(t:Target)
+      WHERE d.name CONTAINS '{drug_name}'
+      RETURN t.name AS target, t.ttd_target_id AS ttd_id,
+             t.uniprot_id AS uniprot_id, t.target_type AS target_type,
+             r.clinical_status AS clinical_status
+      ORDER BY t.name LIMIT {limit}
+    parameters:
+      - {name: drug_name, type: str}
+      - {name: limit, type: int, default: 20}
