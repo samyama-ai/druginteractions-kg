@@ -1,108 +1,97 @@
-# Drug Interactions & Pharmacogenomics Knowledge Graph
+# Drug Interactions Knowledge Graph
 
-A knowledge graph integrating drug-target interactions, side effects, bioactivity data, and adverse events from 5 open data sources, built on [Samyama Graph](https://github.com/samyama-ai/samyama-graph).
+**245K nodes. 388K edges. Drug targets, side effects, bioactivity, and adverse events from 5 open sources.**
 
-**244,783 nodes** | **387,577 edges** | **7 node labels** | **6 edge types** | **8.1 MB snapshot**
+<a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache_2.0-blue" alt="License"></a>
 
-## Snapshot
+---
 
-| | |
-|---|---|
-| **GitHub** | [kg-snapshots-v5](https://github.com/samyama-ai/samyama-graph/releases/tag/kg-snapshots-v5) |
-| **S3** | `s3://samyama-data/snapshots/druginteractions.sgsnap` |
+We loaded DrugBank, DGIdb, SIDER, ChEMBL, and OpenFDA into one graph, then asked:
 
-## Data Sources
+> *"Which drug has the most reported side effects?"*
 
-| Source | Content | Nodes | License | Status |
-|--------|---------|------:|---------|--------|
-| DrugBank CC0 | Drug vocabulary | 19,842 | CC0 | Loaded |
-| DGIdb | Drug-gene interactions | 6,449 genes | Open | Loaded (GraphQL) |
-| SIDER | Side effects & indications | 8,702 | CC-BY-SA-4.0 | Loaded |
-| ChEMBL 36 | Bioactivity (IC50, Ki, Kd, EC50) | 208,025 | CC-BY-SA-3.0 | Loaded |
-| OpenFDA FAERS | Adverse events | 1,765 | Public domain | Loaded (top 500 drugs) |
-| TTD | Therapeutic targets | — | CC-BY-NC | Unavailable (site migrated) |
-
-## Quick Start
-
-```bash
-# 1. Download data
-source ~/projects/venv/bin/activate
-python -m etl.download_data --data-dir data
-
-# 2. Run tests
-pytest tests/ -v
-
-# 3. Load into Samyama
-python -m etl.loader --data-dir data --url http://localhost:8080
-
-# 4. Start MCP server
-python -m mcp_server.server --url http://localhost:8080
+```cypher
+MATCH (d:Drug)-[:HAS_SIDE_EFFECT]->(se:SideEffect)
+RETURN d.name, count(se) AS side_effects
+ORDER BY side_effects DESC LIMIT 5
 ```
+
+| Drug | Side Effects |
+|------|-------------|
+| **Pregabalin** | **839** |
+| Duloxetine | 791 |
+| Quetiapine | 764 |
+| Olanzapine | 738 |
+| Aripiprazole | 712 |
+
+**One query across five pharmacological databases.** Powered by [Samyama Graph](https://github.com/samyama-ai/samyama-graph).
+
+[See all 100 benchmark queries →](https://samyama-ai.github.io/samyama-graph-book/biomedical_benchmark.html)
+
+---
 
 ## Schema
 
-```
-Drug ──INTERACTS_WITH_GENE──> Gene
-Drug ──HAS_SIDE_EFFECT──────> SideEffect
-Drug ──HAS_INDICATION───────> Indication
-Drug ──HAS_BIOACTIVITY──────> Bioactivity ──BIOACTIVITY_TARGET──> Gene
-Drug ──TTD_TARGETS──────────> Target
-Drug ──HAS_ADVERSE_EVENT────> AdverseEvent
-Drug ──CLASSIFIED_AS────────> DrugClass ──PARENT_CLASS──> DrugClass
+**6 node labels** -- Drug, Gene, SideEffect, Indication, Bioactivity, AdverseEvent
+
+**5 edge types** -- INTERACTS_WITH_GENE, HAS_SIDE_EFFECT, HAS_INDICATION, HAS_ADVERSE_EVENT, BIOACTIVITY_TARGET
+
+**5 data sources** -- DrugBank (CC0), DGIdb (drug-gene), SIDER (side effects), ChEMBL 36 (bioactivity), OpenFDA FAERS (adverse events)
+
+## Quick Start
+
+### Load from snapshot (recommended)
+
+```bash
+# Download (8.1 MB)
+curl -LO https://github.com/samyama-ai/samyama-graph/releases/download/kg-snapshots-v5/druginteractions.sgsnap
+
+# Start Samyama and import
+./target/release/samyama
+curl -X POST http://localhost:8080/api/tenants \
+  -H 'Content-Type: application/json' \
+  -d '{"id":"druginteractions","name":"Drug Interactions KG"}'
+curl -X POST http://localhost:8080/api/tenants/druginteractions/snapshot/import \
+  -F "file=@druginteractions.sgsnap"
 ```
 
-## Cross-KG Federation
+### Build from source
 
-This KG bridges to Pathways KG and Clinical Trials KG:
+```bash
+git clone https://github.com/samyama-ai/druginteractions-kg.git && cd druginteractions-kg
+pip install -e ".[dev]"
+python -m etl.download_data --data-dir data
+python -m etl.loader --data-dir data --url http://localhost:8080
+```
+
+## Example Queries
 
 ```cypher
--- Drug targets → Biological Pathways
-MATCH (d:Drug {name: 'Metformin'})-[:INTERACTS_WITH_GENE]->(g:Gene)
-MATCH (p:Protein {name: g.gene_name})-[:PARTICIPATES_IN]->(pw:Pathway)
-RETURN pw.name, g.gene_name
+-- Polypharmacy: shared gene targets between two drugs
+MATCH (d1:Drug {name: 'Warfarin'})-[:INTERACTS_WITH_GENE]->(g:Gene)
+      <-[:INTERACTS_WITH_GENE]-(d2:Drug {name: 'Aspirin'})
+RETURN g.gene_name AS shared_target
 
--- Side effects of drugs in Phase 3 trials
+-- Side effects of drugs in Phase 3 clinical trials (cross-KG)
 MATCH (d:Drug)-[:HAS_SIDE_EFFECT]->(se:SideEffect)
 MATCH (i:Intervention {name: d.name})<-[:TESTS]-(ct:ClinicalTrial)
 WHERE ct.phase CONTAINS '3'
 RETURN d.name, se.name, ct.nct_id
-
--- Polypharmacy: shared targets between drugs
-MATCH (d1:Drug {name: 'Warfarin'})-[:INTERACTS_WITH_GENE]->(g:Gene)
-      <-[:INTERACTS_WITH_GENE]-(d2:Drug {name: 'Aspirin'})
-RETURN g.gene_name AS shared_target
 ```
 
-## MCP Tools
+## Part of the Biomedical Trifecta
 
-12 domain-specific tools: `drug_interactions`, `gene_drugs`, `drug_side_effects`,
-`drug_indications`, `drug_bioactivity`, `drug_adverse_events`, `interaction_checker`,
-`polypharmacy_risk`, `drug_class_hierarchy`, `gene_drug_landscape`, `side_effect_drugs`,
-`target_development_status`.
+This KG is one of three biomedical knowledge graphs that together form Samyama's billion-edge benchmark: [Clinical Trials](https://github.com/samyama-ai/clinicaltrials-kg) (27M edges) + [Pathways](https://github.com/samyama-ai/pathways-kg) (835K edges) + **Drug Interactions** (388K edges), federated with [PubMed](https://github.com/samyama-ai/pubmed-kg) (1.04B edges).
 
-## Project Structure
+## Links
 
-```
-druginteractions-kg/
-├── etl/
-│   ├── helpers.py              # Registry, batch ops, escaping
-│   ├── download_data.py        # Bulk downloads with resume
-│   ├── loader.py               # Orchestrator (4 phases)
-│   ├── drugbank_dgidb_loader.py
-│   ├── sider_loader.py
-│   ├── chembl_ttd_loader.py
-│   └── openfda_loader.py
-├── mcp_server/
-│   ├── config.yaml             # 12 domain tools
-│   └── server.py
-├── tests/
-│   ├── test_helpers.py
-│   ├── test_drugbank_dgidb_loader.py
-│   ├── test_sider_loader.py
-│   ├── test_chembl_ttd_loader.py
-│   └── test_openfda_loader.py
-├── schema/
-│   └── druginteractions_kg.cypher
-└── docs/
-    └── druginteractions-kg-plan.md
-```
+| | |
+|---|---|
+| Samyama Graph | [github.com/samyama-ai/samyama-graph](https://github.com/samyama-ai/samyama-graph) |
+| The Book | [samyama-ai.github.io/samyama-graph-book](https://samyama-ai.github.io/samyama-graph-book/) |
+| Benchmark (100 queries) | [Biomedical Benchmark](https://samyama-ai.github.io/samyama-graph-book/biomedical_benchmark.html) |
+| Contact | [samyama.dev/contact](https://samyama.dev/contact) |
+
+## License
+
+Apache 2.0
