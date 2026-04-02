@@ -1,17 +1,26 @@
 # Drug Interactions & Pharmacogenomics Knowledge Graph
 
-A knowledge graph integrating drug-target interactions, side effects, bioactivity data, and adverse events from 6 open data sources, built on [Samyama Graph](https://github.com/samyama-ai/samyama-graph).
+A knowledge graph integrating drug-target interactions, side effects, bioactivity data, and adverse events from 5 open data sources, built on [Samyama Graph](https://github.com/samyama-ai/samyama-graph).
+
+**244,783 nodes** | **387,577 edges** | **7 node labels** | **6 edge types** | **8.1 MB snapshot**
+
+## Snapshot
+
+| | |
+|---|---|
+| **GitHub** | [kg-snapshots-v5](https://github.com/samyama-ai/samyama-graph/releases/tag/kg-snapshots-v5) |
+| **S3** | `s3://samyama-data/snapshots/druginteractions.sgsnap` |
 
 ## Data Sources
 
-| Source | Content | Nodes | License |
-|--------|---------|------:|---------|
-| DrugBank CC0 | Drug vocabulary | ~12K | CC0 |
-| DGIdb | Drug-gene interactions | ~20K genes | Open |
-| SIDER | Side effects & indications | ~9.4K | CC-BY-SA-4.0 |
-| ChEMBL | Bioactivity (IC50, Ki) | ~500K | CC-BY-SA-3.0 |
-| TTD | Therapeutic targets | ~3.4K | CC-BY-NC |
-| OpenFDA FAERS | Adverse events | ~15K | Public domain |
+| Source | Content | Nodes | License | Status |
+|--------|---------|------:|---------|--------|
+| DrugBank CC0 | Drug vocabulary | 19,842 | CC0 | Loaded |
+| DGIdb | Drug-gene interactions | 6,449 genes | Open | Loaded (GraphQL) |
+| SIDER | Side effects & indications | 8,702 | CC-BY-SA-4.0 | Loaded |
+| ChEMBL 36 | Bioactivity (IC50, Ki, Kd, EC50) | 208,025 | CC-BY-SA-3.0 | Loaded |
+| OpenFDA FAERS | Adverse events | 1,765 | Public domain | Loaded (top 500 drugs) |
+| TTD | Therapeutic targets | — | CC-BY-NC | Unavailable (site migrated) |
 
 ## Quick Start
 
