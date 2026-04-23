@@ -2,6 +2,9 @@
 
 **245K nodes. 388K edges. Drug targets, side effects, bioactivity, and adverse events from 5 open sources.**
 
+> Part of the **Samyama** ecosystem — loaded into and queried via the graph engine at [samyama-ai/samyama-graph](https://github.com/samyama-ai/samyama-graph).
+> This repo holds the loader and source-data specifics for the KG.
+
 <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache_2.0-blue" alt="License"></a>
 
 ---
