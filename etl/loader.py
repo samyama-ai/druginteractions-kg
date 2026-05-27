@@ -30,15 +30,16 @@ def _run_phase(
     tenant: str = "default",
     openfda_use_cache: bool = False,
     openfda_max_drugs: int = 0,
+    limit: int = 0,
 ) -> dict:
     """Dispatch to the appropriate phase loader."""
     if phase == "drugbank_dgidb":
         from etl.drugbank_dgidb_loader import load_drugbank_dgidb
-        return load_drugbank_dgidb(client, data_dir, registry, tenant=tenant)
+        return load_drugbank_dgidb(client, data_dir, registry, tenant=tenant, limit=limit)
 
     elif phase == "sider":
         from etl.sider_loader import load_sider
-        return load_sider(client, data_dir, registry, tenant=tenant)
+        return load_sider(client, data_dir, registry, tenant=tenant, limit=limit)
 
     elif phase == "chembl_ttd":
         from etl.chembl_ttd_loader import load_chembl_ttd
@@ -65,6 +66,7 @@ def load_druginteractions(
     tenant: str = "default",
     openfda_use_cache: bool = False,
     openfda_max_drugs: int = 0,
+    limit: int = 0,
 ) -> dict:
     """Load drug interactions data into the knowledge graph.
 
@@ -116,6 +118,7 @@ def load_druginteractions(
                 tenant=tenant,
                 openfda_use_cache=openfda_use_cache,
                 openfda_max_drugs=openfda_max_drugs,
+                limit=limit,
             )
             elapsed = time.time() - t0_phase
             stats["elapsed_s"] = round(elapsed, 1)

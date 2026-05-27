@@ -23,6 +23,7 @@ def load_sider(
     data_dir: str,
     registry: Registry,
     tenant: str = "default",
+    limit: int = 0,
 ) -> dict:
     """Load SIDER side effects and indications.
 
@@ -62,12 +63,13 @@ def load_sider(
     se_path = os.path.join(sider_dir, "meddra_all_se.tsv")
     if os.path.exists(se_path):
         se_nodes, se_edges = _load_side_effects(
-            client, se_path, registry, cid_to_name, name_to_dbid, tenant
+            client, se_path, registry, cid_to_name, name_to_dbid, tenant,
+            limit=limit,
         )
 
-    # Load indications
+    # Load indications (skipped under a limit to keep demo loads fast)
     ind_path = os.path.join(sider_dir, "meddra_all_indications.tsv")
-    if os.path.exists(ind_path):
+    if not limit and os.path.exists(ind_path):
         ind_nodes, ind_edges = _load_indications(
             client, ind_path, registry, cid_to_name, name_to_dbid, tenant
         )
@@ -125,8 +127,11 @@ def _load_side_effects(
     cid_to_name: dict[str, str],
     name_to_dbid: dict[str, str],
     tenant: str,
+    limit: int = 0,
 ) -> tuple[int, int]:
     """Load SideEffect nodes and HAS_SIDE_EFFECT edges from SIDER.
+
+    If limit > 0, stop after that many HAS_SIDE_EFFECT edges.
 
     SIDER format: CID, UMLS_from_label, method, UMLS_side_effect, side_effect_name
     """
@@ -136,17 +141,27 @@ def _load_side_effects(
 
     with open(path, "r", encoding="utf-8") as f:
         for line in f:
+            if limit and len(edge_batch) >= limit:
+                break
             line = line.strip()
             if not line or line.startswith("#"):
                 continue
             parts = line.split("\t")
-            if len(parts) < 5:
+            if len(parts) < 6:
                 continue
 
+            # SIDER meddra_all_se.tsv columns:
+            # 0 STITCH_flat_CID, 1 STITCH_stereo_CID, 2 UMLS_from_label,
+            # 3 MedDRA_concept_type (LLT/PT), 4 UMLS_concept_id_for_MedDRA_term,
+            # 5 side_effect_name
             cid = parts[0].strip()
-            meddra_id = parts[3].strip()
-            se_name = parts[4].strip()
+            concept_type = parts[3].strip()
+            meddra_id = parts[4].strip()
+            se_name = parts[5].strip()
 
+            # Keep only Preferred Terms to avoid lower-level-term duplication.
+            if concept_type != "PT":
+                continue
             if not meddra_id or not se_name:
                 continue
 

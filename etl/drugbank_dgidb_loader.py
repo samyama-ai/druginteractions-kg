@@ -23,6 +23,7 @@ def load_drugbank_dgidb(
     data_dir: str,
     registry: Registry,
     tenant: str = "default",
+    limit: int = 0,
 ) -> dict:
     """Load DrugBank drugs and DGIdb gene interactions.
 
@@ -69,7 +70,8 @@ def load_drugbank_dgidb(
     interactions_path = os.path.join(dgidb_dir, "interactions.tsv")
     if os.path.exists(interactions_path):
         g, e = _load_dgidb_interactions(
-            client, interactions_path, registry, name_to_id, chembl_lookup, tenant
+            client, interactions_path, registry, name_to_id, chembl_lookup, tenant,
+            limit=limit,
         )
         gene_nodes += g
         interaction_edges += e
@@ -116,8 +118,10 @@ def _load_drugbank_vocab(
                 props["cas_number"] = cas
             node_batch.append(("Drug", props))
 
-    if node_batch:
-        batch_create_nodes(client, node_batch, tenant)
+    # Create in chunks: one mega-CREATE of ~20K nodes is very slow to parse,
+    # whereas ~500-node statements load in a fraction of the time.
+    for i in range(0, len(node_batch), 500):
+        batch_create_nodes(client, node_batch[i : i + 500], tenant)
 
     print(f"  DrugBank: {len(node_batch)} Drug nodes")
     return len(node_batch), name_to_id
@@ -143,8 +147,12 @@ def _load_dgidb_interactions(
     name_to_id: dict[str, str],
     chembl_lookup: dict[str, str],
     tenant: str,
+    limit: int = 0,
 ) -> tuple[int, int]:
     """Load Gene nodes and INTERACTS_WITH_GENE edges from DGIdb interactions.tsv.
+
+    If limit > 0, stop after creating that many INTERACTS_WITH_GENE edges
+    (used to scope demos to a fast-loading real subset).
 
     Returns (gene_count, edge_count).
     """
@@ -156,13 +164,23 @@ def _load_dgidb_interactions(
     with open(path, "r", encoding="utf-8") as f:
         reader = csv.DictReader(f, delimiter="\t")
         for row in reader:
+            if limit and len(edge_batch) >= limit:
+                break
+            # DGIdb interactions.tsv columns:
+            # gene_name, gene_concept_id, drug_name, drug_concept_id,
+            # drug_claim_name, interaction_type, interaction_score,
+            # interaction_source_db_name
             gene_name = row.get("gene_name", "").strip()
-            drug_claim = row.get("drug_claim_primary_name", "").strip()
             drug_name_upper = row.get("drug_name", "").strip()
-            interaction_type = row.get("interaction_types", "").strip()
-            source = row.get("interaction_claim_source", "").strip()
-            entrez_id = row.get("entrez_id", "").strip()
-            drug_chembl_id = row.get("drug_chembl_id", "").strip()
+            drug_claim = row.get("drug_claim_name", "").strip() or drug_name_upper
+            interaction_type = row.get("interaction_type", "").strip()
+            source = row.get("interaction_source_db_name", "").strip()
+            gene_concept_id = row.get("gene_concept_id", "").strip()
+            drug_concept_id = row.get("drug_concept_id", "").strip()
+            # entrez id (if present) embedded as e.g. "ncbigene:1234"
+            entrez_id = gene_concept_id.split(":", 1)[1] if gene_concept_id.startswith("ncbigene:") else ""
+            # chembl id embedded in drug_concept_id e.g. "chembl:CHEMBL75967"
+            drug_chembl_id = drug_concept_id.split(":", 1)[1] if drug_concept_id.startswith("chembl:") else ""
 
             if not gene_name or not drug_claim:
                 continue
@@ -186,8 +204,8 @@ def _load_dgidb_interactions(
                 enriched_drugs.add(drugbank_id)
                 try:
                     client.query(
-                        f"MATCH (d:Drug {{drugbank_id: '{drugbank_id}'}}) "
-                        f"SET d.chembl_id = '{chembl_id}'",
+                        f'MATCH (d:Drug {{drugbank_id: "{drugbank_id}"}}) '
+                        f'SET d.chembl_id = "{chembl_id}"',
                         tenant,
                     )
                 except Exception:

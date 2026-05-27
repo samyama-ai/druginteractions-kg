@@ -10,21 +10,32 @@ from dataclasses import dataclass, field
 
 
 def _escape(value: str) -> str:
-    """Sanitize a string for embedding in Cypher literals."""
+    """Sanitize a string for embedding in a DOUBLE-QUOTED Cypher literal.
+
+    Samyama's PEG parser only accepts double-quoted string literals; single-quoted
+    literals with backslash/doubled escaping fail to parse. So we escape only the
+    backslash and the double-quote, and always emit double-quoted strings (see _q).
+    """
     if not isinstance(value, str):
         return str(value)
-    return value.replace("\\", "\\\\").replace("'", "\\'").replace('"', '\\"')
+    return value.replace("\\", "\\\\").replace('"', '\\"')
 
 
 def _q(val) -> str:
-    """Quote a value for Cypher: strings get single quotes, numbers/bools pass through."""
+    """Quote a value for Cypher: strings get DOUBLE quotes, numbers/bools pass through.
+
+    Floats are rendered via repr to avoid precision loss; the engine also requires
+    float literals (not int) for float-vs-float WHERE comparisons.
+    """
     if val is None:
         return "null"
     if isinstance(val, bool):
         return "true" if val else "false"
-    if isinstance(val, (int, float)):
+    if isinstance(val, float):
+        return repr(val)
+    if isinstance(val, int):
         return str(val)
-    return f"'{_escape(str(val))}'"
+    return f'"{_escape(str(val))}"'
 
 
 def _prop_str(props: dict) -> str:

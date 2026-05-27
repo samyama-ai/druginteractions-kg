@@ -2,6 +2,8 @@
 
 **245K nodes. 388K edges. Drug targets, side effects, bioactivity, and adverse events from 5 open sources.**
 
+![Drug interactions demo](demo/druginteractions.gif)
+
 > Part of the **Samyama** ecosystem — loaded into and queried via the graph engine at [samyama-ai/samyama-graph](https://github.com/samyama-ai/samyama-graph).
 > This repo holds the loader and source-data specifics for the KG.
 
@@ -30,6 +32,19 @@ ORDER BY side_effects DESC LIMIT 5
 **One query across five pharmacological databases.** Powered by [Samyama Graph](https://github.com/samyama-ai/samyama-graph).
 
 [See all 100 benchmark queries →](https://samyama-ai.github.io/samyama-graph-book/biomedical_benchmark.html)
+
+---
+
+## Demo
+
+A narrated walkthrough on a fast, real subset (DrugBank CC0 + DGIdb + SIDER; DGIdb interactions and SIDER side-effects capped at 4,000 each via the loader's `limit` arg, loads in ~15s): load → busiest drug-target genes (CYP enzymes) → polypharmacy (drugs sharing a gene target) → heaviest side-effect burden.
+
+```bash
+python -m demo.demo                                                          # run live
+asciinema rec --overwrite --cols 92 --rows 32 --idle-time-limit 2.0 \
+  -c "bash -c 'python -m demo.demo'" demo/druginteractions.cast              # re-record
+agg demo/druginteractions.cast demo/druginteractions.gif                     # convert to gif
+```
 
 ---
 
