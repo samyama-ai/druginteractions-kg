@@ -20,6 +20,10 @@ from etl.helpers import Registry
 
 ALL_PHASES = ["drugbank_dgidb", "sider", "chembl_ttd", "openfda"]
 
+# Default tenant/graph. Matches the published snapshot's tenant and the MCP
+# server's --graph default, so build-from-source and snapshot agree.
+GRAPH = "druginteractions"
+
 
 def _run_phase(
     phase: str,
@@ -27,7 +31,7 @@ def _run_phase(
     data_dir: str,
     registry: Registry,
     *,
-    tenant: str = "default",
+    tenant: str = GRAPH,
     openfda_use_cache: bool = False,
     openfda_max_drugs: int = 0,
     limit: int = 0,
@@ -63,7 +67,7 @@ def load_druginteractions(
     client,
     data_dir: str = "data",
     phases: list[str] | None = None,
-    tenant: str = "default",
+    tenant: str = GRAPH,
     openfda_use_cache: bool = False,
     openfda_max_drugs: int = 0,
     limit: int = 0,
@@ -198,8 +202,8 @@ def main():
                         help="Root directory for data files (default: data)")
     parser.add_argument("--phases", nargs="*", default=None,
                         help=f"Phases to load (default: all). Choices: {', '.join(ALL_PHASES)}")
-    parser.add_argument("--tenant", default="default",
-                        help="Graph tenant name (default: default)")
+    parser.add_argument("--tenant", default=GRAPH,
+                        help="Graph tenant name (default: %(default)s)")
     parser.add_argument("--url", default=None,
                         help="Samyama server URL (omit for embedded mode)")
     parser.add_argument("--openfda-cache", action="store_true",

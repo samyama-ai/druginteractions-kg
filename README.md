@@ -35,6 +35,18 @@ ORDER BY side_effects DESC LIMIT 5
 
 ---
 
+## Documentation
+
+New here? Start with the guides:
+
+| Guide | What it covers |
+|-------|----------------|
+| **[GETTING_STARTED.md](GETTING_STARTED.md)** | prerequisites (Python ≥ 3.10) · install · run the engine (Docker) · load the graph · first query |
+| **[docs/QUERYING.md](docs/QUERYING.md)** | ask questions via **MCP (Claude)**, the **HTTP API**, or the **Samyama CLI** |
+| [Biomedical Benchmark](https://samyama-ai.github.io/samyama-graph-book/biomedical_benchmark.html) | 100 example queries |
+
+---
+
 ## Demo
 
 A narrated walkthrough on a fast, real subset (DrugBank CC0 + DGIdb + SIDER; DGIdb interactions and SIDER side-effects capped at 4,000 each via the loader's `limit` arg, loads in ~15s): load → busiest drug-target genes (CYP enzymes) → polypharmacy (drugs sharing a gene target) → heaviest side-effect burden.
@@ -58,28 +70,28 @@ agg demo/druginteractions.cast demo/druginteractions.gif                     # c
 
 ## Quick Start
 
+**Full walkthrough → [GETTING_STARTED.md](GETTING_STARTED.md)** (prerequisites, Docker, loading, querying).
+
 ### Load from snapshot (recommended)
 
-```bash
-# Download (8.1 MB)
-curl -LO https://github.com/samyama-ai/samyama-graph/releases/download/kg-snapshots-v5/druginteractions.sgsnap
+Needs **Python ≥ 3.10** for the tooling and **Docker** for the engine:
 
-# Start Samyama and import
-./target/release/samyama
-curl -X POST http://localhost:8080/api/tenants \
-  -H 'Content-Type: application/json' \
-  -d '{"id":"druginteractions","name":"Drug Interactions KG"}'
-curl -X POST http://localhost:8080/api/tenants/druginteractions/snapshot/import \
-  -F "file=@druginteractions.sgsnap"
+```bash
+pip install -r requirements.txt
+docker run --rm -p 8080:8080 -p 6379:6379 public.ecr.aws/f9f6l5u4/samyama-graph:1.1.0
+
+curl -LO https://github.com/samyama-ai/samyama-graph/releases/download/kg-snapshots-v5/druginteractions.sgsnap  # ~8 MB
+curl -X POST http://localhost:8080/api/tenants -H 'Content-Type: application/json' -d '{"id":"druginteractions","name":"Drug Interactions KG"}'
+curl -X POST http://localhost:8080/api/tenants/druginteractions/snapshot/import -F "file=@druginteractions.sgsnap"
 ```
 
 ### Build from source
 
 ```bash
 git clone https://github.com/samyama-ai/druginteractions-kg.git && cd druginteractions-kg
-pip install -e ".[dev]"
+pip install -r requirements.txt          # or: pip install -e ".[dev]" for tests
 python -m etl.download_data --data-dir data
-python -m etl.loader --data-dir data --url http://localhost:8080
+python -m etl.loader --data-dir data --url http://localhost:8080     # → druginteractions tenant
 ```
 
 ## Example Queries
@@ -96,6 +108,16 @@ MATCH (i:Intervention {name: d.name})<-[:TESTS]-(ct:ClinicalTrial)
 WHERE ct.phase CONTAINS '3'
 RETURN d.name, se.name, ct.nct_id
 ```
+
+## Use with Claude (MCP)
+
+```bash
+python -m mcp_server.server --url http://localhost:8080 --graph druginteractions   # against a running engine
+python -m mcp_server.server --data-dir data                                        # embedded, loads on startup
+python -m mcp_server.server --url http://localhost:8080 --list-tools                # see all tools
+```
+
+Register it with Claude and ask in natural language — full steps in **[docs/QUERYING.md](docs/QUERYING.md)**.
 
 ## Part of the Biomedical Trifecta
 
