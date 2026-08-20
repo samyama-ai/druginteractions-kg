@@ -121,7 +121,7 @@ Register it with Claude and ask in natural language — full steps in **[docs/QU
 
 ## Part of the Biomedical Trifecta
 
-This KG is one of three biomedical knowledge graphs that together form Samyama's billion-edge benchmark: [Clinical Trials](https://github.com/samyama-ai/clinicaltrials-kg) (27M edges) + [Pathways](https://github.com/samyama-ai/pathways-kg) (835K edges) + **Drug Interactions** (388K edges), federated with [PubMed](https://github.com/samyama-ai/pubmed-kg) (1.04B edges).
+This KG is one of three biomedical knowledge graphs that together form Samyama's billion-edge benchmark: [Clinical Trials](https://github.com/samyama-ai/clinicaltrials-kg) (27M edges) + [Pathways](https://github.com/samyama-ai/pathways-kg) (835K edges) + **Drug Interactions** (388K edges), merged on load with [PubMed](https://github.com/samyama-ai/pubmed-kg) (1.04B edges).
 
 ## Links
 
