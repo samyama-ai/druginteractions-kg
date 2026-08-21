@@ -4,9 +4,17 @@
 
 A knowledge graph integrating drug-target interactions, side effects, bioactivity data,
 and adverse events from 6 open data sources. Completes the biomedical trifecta alongside
-Pathways KG and Clinical Trials KG, enabling cross-KG federation queries.
+Pathways KG and Clinical Trials KG, whose entities merge with this one on load via the
+bridge properties below — a single merged store, not query-time federation.
 
 ## Schema
+
+> **This is the pre-build design plan, written 2026-03-20.** The counts below are
+> estimates made before the ETL ran and they did not survive contact with the data —
+> the graph as built has **245K nodes and 388K edges** (see the README, which is
+> authoritative). The header `~65K nodes` is also internally inconsistent with its own
+> list: it is the sum of every label *except* Bioactivity (~500K). Kept as a record of
+> what was planned; do not cite it for scale.
 
 **9 Node Labels (~65K nodes):**
 - Drug (~12K) — DrugBank CC0 + DGIdb
