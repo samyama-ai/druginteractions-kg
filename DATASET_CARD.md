@@ -29,13 +29,12 @@ size_categories:
 
 ## Provenance and licence
 
-Apache 2.0
+Apache 2.0 covers the loader. The five sources do not combine into one permissive licence:
+ChEMBL is CC BY-SA 3.0 (share-alike), SIDER is non-commercial, and DGIdb carries per-source
+terms that may forbid redistribution. DrugBank here is the **Open Data vocabulary** (CC0),
+not the full CC BY-NC dataset. **Ship the loader, not the graph** — or build a snapshot from
+the CC0 subset only. See [`DATA-LICENSES.md`](DATA-LICENSES.md).
 
-> ⚠️ **The licence above covers this repository's code, not the data.** This graph is
-> derived from an upstream source (DrugBank (CC0), DGIdb (drug-gene), SIDER (side effects), ChEMBL 36 (bioactivity), OpenFDA FAERS (adverse events)), whose
-> own terms govern redistribution and are **not stated here**. Establish and record them
-> before redistributing or quoting this dataset. The frontmatter is therefore
-> `license: other` rather than `apache-2.0`.
 
 ## Reproducing
 
