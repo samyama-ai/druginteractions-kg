@@ -36,6 +36,28 @@ not the full CC BY-NC dataset. **Ship the loader, not the graph** — or build a
 the CC0 subset only. See [`DATA-LICENSES.md`](DATA-LICENSES.md).
 
 
+## Freshness
+
+**Refresh cadence:** The 5 upstreams do not share one cadence, and this repository
+has no automated refresh for any of them -- `etl/download_data.py` must be re-run
+manually per source:
+- **ChEMBL** publishes numbered releases several times a year (ChEMBL 36 is the
+  version currently loaded).
+- **openFDA FAERS** publishes a new quarterly adverse-event extract every quarter.
+- **DrugBank**'s Open Data vocabulary and **DGIdb**'s aggregated claims are released
+  as irregular, versioned updates (DrugBank roughly 1-2x/year; DGIdb on no fixed
+  schedule).
+- **SIDER** has had no substantive update in years and should be treated as an
+  effectively static, frozen source, not a periodically refreshed one.
+
+**Data as of:** The per-source licence terms in [`DATA-LICENSES.md`](DATA-LICENSES.md)
+were checked/re-verified on 2026-09-18 for all 5 sources (SIDER's page was unreachable
+that day and its licence is unconfirmed) -- these are licence-check dates, not data
+re-fetch dates. The loader code itself (`etl/`) was last modified 2026-07-31 (`git
+log`); that is the most recent point at which the from-source build path is known to
+have been exercised. No later "graph built on <date>" record exists in this repo, so
+treat 2026-07-31 as the upper bound on how current a from-source rebuild would be.
+
 ## Reproducing
 
 The loader in this repository rebuilds the graph from the upstream source. See the
@@ -47,6 +69,24 @@ README's Quick Start for the snapshot download and the from-source build.
   written; they are not re-measured by the card.
 - Where a field above says *not recorded*, that is a gap in this repository rather
   than a property of the data.
+
+## Citation
+
+Please cite this repository if you use it. See [`CITATION.cff`](CITATION.cff) for
+machine-readable metadata (CFF 1.2.0).
+
+```bibtex
+@misc{druginteractions_kg_2026,
+  title        = {Drug Interactions Knowledge Graph},
+  author       = {Samyama},
+  year         = {2026},
+  howpublished = {\url{https://git.samyama.ai/Samyama.ai/druginteractions-kg}}
+}
+```
+
+**No DOI.** This release has not been deposited to Zenodo, so there is no DOI to
+cite. Getting one is open work -- it requires a human to make the Zenodo deposit
+(KG-06).
 
 ## Links
 
