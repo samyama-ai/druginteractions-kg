@@ -9,3 +9,4 @@ build/
 venv/
 .ruff_cache/
 *.sgsnap
+benchmarks/query_results.txt
